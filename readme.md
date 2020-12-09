@@ -13,6 +13,9 @@ Additional Features would include
 - Start Radio of current playing song 
 - Change to one of connected devices.
 
+### Usage / Installation / Builds 
+Project under dev, builds will be on the releases page once done.
+
 
 ```sh
 go get github.com/barelyhuman/spotify-lite-go
