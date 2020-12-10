@@ -2,6 +2,11 @@
 Simple Spotify Client built in go lang and [fyne](http://fyne.io)
 
 
+## Disclaimer
+This repo / app has nothing to with the Official Spotify clients. 
+This is an unofficial client with a GUI for existing connected remote spotify devices.
+
+
 ### Scope
 This app doesn't act as a replacement to the desktop client of Spotify since there is no way for me to play the actual audio right now.
 (If there is, let me know via a Pull Request of mail me the resources that you think would help)
