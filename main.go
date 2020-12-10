@@ -52,6 +52,9 @@ func main() {
 		wg.Done()
 	}()
 
+	appInstance = app.NewWithID("com.reaper.spotifylite")
+	windowInstance = appInstance.NewWindow("Spotify Lite")
+
 	setupInitialAppView(openPort)
 	windowInstance.ShowAndRun()
 
@@ -83,15 +86,14 @@ func setupServer(connectionPort string) *http.Server {
 }
 
 func setupInitialAppView(openPort string) {
-	appInstance = app.NewWithID("com.reaper.spotifylite")
-	windowInstance = appInstance.NewWindow("Spotify Lite")
-
 	accessToken := appInstance.Preferences().StringWithFallback("Access Token", "")
 	refreshToken := appInstance.Preferences().StringWithFallback("Refresh Token", "")
 	clientID := appInstance.Preferences().StringWithFallback("Client ID", "")
 	clientSecret := appInstance.Preferences().StringWithFallback("Client Secret", "")
 
 	redirectURL := "http://localhost:" + openPort + "/callback"
+
+	fmt.Println(accessToken + "Token")
 
 	auth = spotify.NewAuthenticator(redirectURL, spotify.ScopeUserReadCurrentlyPlaying, spotify.ScopeUserReadPlaybackState, spotify.ScopeUserModifyPlaybackState)
 
@@ -108,12 +110,14 @@ This only has to be done once.
 		)
 		clientIDEntry := widget.NewEntry()
 		clientIDEntry.SetPlaceHolder("Client ID")
+		clientIDEntry.SetText(clientID)
 		clientIDEntry.OnChanged = func(value string) {
 			// fmt.Println(value)
 		}
 
 		clientSecretEntry := widget.NewEntry()
 		clientSecretEntry.SetPlaceHolder("Client Secret")
+		clientSecretEntry.SetText(clientSecret)
 		clientSecretEntry.OnChanged = func(value string) {
 			// fmt.Println(value)
 		}
@@ -134,10 +138,13 @@ This only has to be done once.
 		)
 	} else {
 		auth.SetAuthInfo(clientID, clientSecret)
+		fmt.Println("Failed before auth")
 		client = auth.NewClient(&oauth2.Token{AccessToken: accessToken, RefreshToken: refreshToken})
+		fmt.Println("Failed after auth")
 		user, err := client.CurrentUser()
 		if err != nil {
-			appInstance.Preferences().RemoveValue("Access Token")
+			fmt.Println("I got in")
+			appInstance.Preferences().SetString("Access Token", "")
 			log.Fatal("Failed :", err)
 		}
 		fmt.Println("Hi: ", user.ID)
