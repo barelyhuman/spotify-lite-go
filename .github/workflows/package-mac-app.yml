@@ -36,4 +36,8 @@ jobs:
           automatic_release_tag: latest
           prerelease: true
           title: 'Spotify Lite Go'
-          files: ./Spotify\ Lite.app
+          files: | 
+            *.app
+            readme.md
+
+            
