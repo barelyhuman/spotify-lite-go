@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"runtime"
 	"sync"
+	"time"
 
 	"fyne.io/fyne"
 	"fyne.io/fyne/app"
@@ -83,8 +84,15 @@ func setupInitialAppView(openPort string) {
 	windowInstance = appInstance.NewWindow("Spotify Lite")
 
 	accessToken := appInstance.Preferences().StringWithFallback("Access Token", "")
+	refreshToken := appInstance.Preferences().StringWithFallback("Refresh Token", "")
+	clientID := appInstance.Preferences().StringWithFallback("Client ID", "")
+	clientSecret := appInstance.Preferences().StringWithFallback("Client Secret", "")
 
-	if accessToken == "" {
+	redirectURL := "http://localhost:" + openPort + "/callback"
+
+	auth = spotify.NewAuthenticator(redirectURL, spotify.ScopeUserReadCurrentlyPlaying, spotify.ScopeUserReadPlaybackState, spotify.ScopeUserModifyPlaybackState)
+
+	if accessToken == "" || clientID == "" || clientSecret == "" {
 		var openPortLabel = widget.NewLabel(`
 Spotify Lite, needs you to create your own spotify app and add the creds here.
 1. Register an application at: https://developer.spotify.com/my-applications/
@@ -108,6 +116,8 @@ This only has to be done once.
 		}
 
 		connectButton := widget.NewButton("Connect", func() {
+			appInstance.Preferences().SetString("Client ID", clientIDEntry.Text)
+			appInstance.Preferences().SetString("Client Secret", clientSecretEntry.Text)
 			initiateOAuthFlow(clientIDEntry.Text, clientSecretEntry.Text, openPort)
 		})
 
@@ -120,14 +130,20 @@ This only has to be done once.
 			),
 		)
 	} else {
-		client = auth.NewClient(&oauth2.Token{AccessToken: accessToken})
+		auth.SetAuthInfo(clientID, clientSecret)
+		client = auth.NewClient(&oauth2.Token{AccessToken: accessToken, RefreshToken: refreshToken})
+		user, err := client.CurrentUser()
+		if err != nil {
+			appInstance.Preferences().RemoveValue("Access Token")
+			log.Fatal("Failed :", err)
+		}
+		fmt.Println("Hi: ", user.ID)
 		showPlayerView()
 	}
+
 }
 
 func initiateOAuthFlow(clientID string, clientSecret string, openPort string) {
-	redirectURL := "http://localhost:" + openPort + "/callback"
-	auth = spotify.NewAuthenticator(redirectURL, spotify.ScopeUserReadCurrentlyPlaying, spotify.ScopeUserReadPlaybackState, spotify.ScopeUserModifyPlaybackState)
 	auth.SetAuthInfo(clientID, clientSecret)
 	// TODO: Replace with cryptographic alpha numeric string
 	state = "1234"
@@ -168,6 +184,7 @@ func oAuthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Got token, creating client")
 
 	appInstance.Preferences().SetString("Access Token", token.AccessToken)
+	appInstance.Preferences().SetString("Refresh Token", token.RefreshToken)
 
 	client = auth.NewClient(token)
 	// playerState, err := client.PlayerState()
@@ -201,19 +218,23 @@ func showPlayerView() {
 
 	playButton := widget.NewButton("Play", func() {
 		client.Play()
+		time.Sleep(2 * time.Second)
 		updateTrackNameLabel(currentPlayingLabel)
 	})
 	pauseButton := widget.NewButton("Pause", func() {
 		client.Pause()
+		time.Sleep(2 * time.Second)
 		updateTrackNameLabel(currentPlayingLabel)
 	})
 	nextButton := widget.NewButton("Next", func() {
 		client.Next()
+		time.Sleep(2 * time.Second)
 		updateTrackNameLabel(currentPlayingLabel)
 	})
 
 	backButton := widget.NewButton("Prev", func() {
 		client.Previous()
+		time.Sleep(2 * time.Second)
 		updateTrackNameLabel(currentPlayingLabel)
 	})
 
