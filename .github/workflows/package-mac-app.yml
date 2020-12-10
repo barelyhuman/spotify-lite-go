@@ -35,7 +35,7 @@ jobs:
           mkdir -p dist 
           mv "Spotify Lite.app" dist/
           cd dist
-          npx create-dmg "Spotify Lite.app"
+          npx create-dmg Spotify\ Lite.app | echo "done"
           rm -rf "Spotify Lite.app"
           ls dist
 
