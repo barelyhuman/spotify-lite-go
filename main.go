@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os/exec"
 	"runtime"
 	"sync"
@@ -100,14 +101,21 @@ func setupInitialAppView(openPort string) {
 	if accessToken == "" || clientID == "" || clientSecret == "" {
 		var openPortLabel = widget.NewLabel(`
 Spotify Lite, needs you to create your own spotify app and add the creds here.
-1. Register an application at: https://developer.spotify.com/my-applications/
-2. Use "http://localhost:` + openPort + `/callback as the redirect URI
-
+1. Register an application at the Developer portal
+2. Add the redirect URI mentioned below in the redirect URI 
 You can then copy the ClientId and ClientSecret and paste them here
-
 This only has to be done once.
 `,
 		)
+
+		dashboardURL, _ := url.Parse("https://developer.spotify.com/my-applications/")
+		rUrl, _ := url.Parse(redirectURL)
+
+		dashboardHelperLabel := widget.NewLabel("Developer Dashboard")
+		developerDashboardLinkElem := widget.NewHyperlink("https://developer.spotify.com/my-applications/", dashboardURL)
+		redirectionHelperLabel := widget.NewLabel("Redirect URI")
+		redirectionLinkElem := widget.NewHyperlink(redirectURL, rUrl)
+
 		clientIDEntry := widget.NewEntry()
 		clientIDEntry.SetPlaceHolder("Client ID")
 		clientIDEntry.SetText(clientID)
@@ -131,6 +139,10 @@ This only has to be done once.
 		windowInstance.SetContent(
 			widget.NewVBox(
 				openPortLabel,
+				dashboardHelperLabel,
+				developerDashboardLinkElem,
+				redirectionHelperLabel,
+				redirectionLinkElem,
 				clientIDEntry,
 				clientSecretEntry,
 				connectButton,
