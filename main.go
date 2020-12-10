@@ -43,7 +43,7 @@ func main() {
 
 	wg := new(sync.WaitGroup)
 
-	wg.Add(1)
+	wg.Add(3)
 
 	openPort := lib.CheckOpenPort("localhost", []string{"1821", "1293"})
 
@@ -215,20 +215,19 @@ func oAuthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 func updateTrackNameLabel(label *widget.Label) {
 	playing, err := client.PlayerCurrentlyPlaying()
 	if err != nil {
-		log.Print(err)
+		log.Print("Label Update Fail:", err)
 	}
-	label.SetText(playing.Item.Name)
+	if !playing.Playing {
+		label.SetText("Not Playing anything...")
+	} else {
+		label.SetText(playing.Item.Name)
+	}
 	return
 }
 
 func showPlayerView() chan bool {
 
-	currentPlayingLabel := widget.NewLabel("")
-	updateTrackNameLabel(currentPlayingLabel)
-
-	stop := schedule(func() {
-		updateTrackNameLabel(currentPlayingLabel)
-	}, 2*time.Second)
+	currentPlayingLabel := widget.NewLabel("Loading...")
 
 	playButton := widget.NewButton("Play", func() {
 		client.Play()
@@ -259,6 +258,10 @@ func showPlayerView() chan bool {
 			),
 		),
 	)
+
+	stop := schedule(func() {
+		updateTrackNameLabel(currentPlayingLabel)
+	}, 2*time.Second)
 
 	return stop
 }
