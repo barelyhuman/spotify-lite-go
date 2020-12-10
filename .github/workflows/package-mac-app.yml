@@ -33,7 +33,7 @@ jobs:
         uses: marvinpinto/action-automatic-releases@latest
         with:
           repo_token: '${{ secrets.GITHUB_TOKEN }}'
-          automatic_release_tag: spotify-lite-go-${{ steps.date.outputs.date }}
+          automatic_release_tag: latest
           prerelease: true
           title: 'Spotify Lite Go Build ${{ steps.date.outputs.date }}'
           files: ./*.app
