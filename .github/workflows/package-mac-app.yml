@@ -23,10 +23,10 @@ jobs:
               curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
               dep ensure
             fi
-
+            
         - name: Package File
-          run: | 
-            fyne package -os darwin
+          run: |
+           fyne package -os darwin
 
         - name: Generate build files
         - uses: marvinpinto/action-automatic-releases@latest
