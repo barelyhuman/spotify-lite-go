@@ -35,6 +35,11 @@ Beta Release Available - [Releases](https://github.com/barelyhuman/spotify-lite-
 Project under dev, builds will be on the releases page once done.
 
 
+### Screenshot
+
+![](images/spotify-lite-image.png)
+
+
 ### Manual / Dev 
 
 ```sh
