@@ -27,7 +27,7 @@ jobs:
 
       - name: Package File
         run: |
-          fyne package -os darwin
+          fyne package -os darwin -name "Spotify Lite"
       
       - name: Generate build files
         uses: marvinpinto/action-automatic-releases@latest
@@ -35,5 +35,5 @@ jobs:
           repo_token: '${{ secrets.GITHUB_TOKEN }}'
           automatic_release_tag: latest
           prerelease: true
-          title: 'Spotify Lite Go Build ${{ steps.date.outputs.date }}'
-          files: ./*.app
+          title: 'Spotify Lite Go'
+          files: ./Spotify\ Lite.app
