@@ -23,16 +23,17 @@ jobs:
             curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
             dep ensure
           fi
+          go get fyne.io/fyne/cmd/fyne
 
       - name: Package File
         run: |
           fyne package -os darwin
 
-      # - name: Generate build files
-      # - uses: marvinpinto/action-automatic-releases@latest
-      #   with:
-      #     repo_token: '${{ secrets.GITHUB_TOKEN }}'
-      #     automatic_release_tag: spotify-lite-go-${{ steps.date.outputs.date }}
-      #     prerelease: true
-      #     title: 'Spotify Lite Go Build ${{ steps.date.outputs.date }}'
-      #     files: ./*.app
+      - name: Generate build files
+      - uses: marvinpinto/action-automatic-releases@latest
+        with:
+          repo_token: '${{ secrets.GITHUB_TOKEN }}'
+          automatic_release_tag: spotify-lite-go-${{ steps.date.outputs.date }}
+          prerelease: true
+          title: 'Spotify Lite Go Build ${{ steps.date.outputs.date }}'
+          files: ./*.app
