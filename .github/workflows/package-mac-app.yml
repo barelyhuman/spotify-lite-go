@@ -1,20 +1,39 @@
 name: Build on Push
 on:
   push:
-    branches: [build] 
+    branches: [build]
 
 jobs:
-    pre-release:
-      name: Pre Release
-      runs-on: macOS-latest
-      steps:
-        - name: Checkout the repository
-          uses: actions/checkout@v2
-        - name: Generate build files
-        - uses: marvinpinto/action-automatic-releases@latest
-          with:
-            repo_token: '${{ secrets.GITHUB_TOKEN }}'
-            automatic_release_tag: spotify-lite-go-${{ steps.date.outputs.date }}
-            prerelease: true
-            title: "Spotify Lite Go Build ${{ steps.date.outputs.date }}"
-            files: ./*.app
+  pre-release:
+    name: Pre Release
+    runs-on: macOS-latest
+    steps:
+      - name: Set up Go 1.x
+        uses: actions/setup-go@v2
+        with:
+          go-version: ^1.13
+
+      - name: Checkout the repository
+        uses: actions/checkout@v2
+
+      - name: Get dependencies
+        run: |
+          go get -v -t -d ./...
+          if [ -f Gopkg.toml ]; then
+            curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+            dep ensure
+          fi
+          go get fyne.io/fyne/cmd/fyne
+
+      - name: Package File
+        run: |
+          fyne package -os darwin -name "Spotify Lite"
+      
+      - name: Generate build files
+        uses: marvinpinto/action-automatic-releases@latest
+        with:
+          repo_token: '${{ secrets.GITHUB_TOKEN }}'
+          automatic_release_tag: latest
+          prerelease: true
+          title: 'Spotify Lite Go'
+          files: ./Spotify\ Lite.app
