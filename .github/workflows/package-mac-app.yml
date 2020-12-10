@@ -28,11 +28,11 @@ jobs:
       - name: Package File
         run: |
           fyne package -os darwin -name "Spotify Lite"
-          ls
           mkdir -p dist 
-          mv *.app dist/
+          mv Spotify Lite.app dist/
           cp readme.md dist/
-      
+          ls dist
+  
       - name: Generate build files
         uses: marvinpinto/action-automatic-releases@latest
         with:
