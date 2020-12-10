@@ -29,7 +29,7 @@ jobs:
         run: |
           fyne package -os darwin -name "Spotify Lite"
           mkdir -p dist 
-          mv Spotify Lite.app dist/
+          mv "Spotify Lite.app" dist/
           cp readme.md dist/
           ls dist
   
