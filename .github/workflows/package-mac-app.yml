@@ -28,6 +28,10 @@ jobs:
       - name: Package File
         run: |
           fyne package -os darwin -name "Spotify Lite"
+          ls
+          mkdir -p dist 
+          mv *.app dist/
+          cp readme.md dist/
       
       - name: Generate build files
         uses: marvinpinto/action-automatic-releases@latest
@@ -36,8 +40,6 @@ jobs:
           automatic_release_tag: latest
           prerelease: true
           title: 'Spotify Lite Go'
-          files: | 
-            *.app
-            readme.md
+          files: ./dist/*
 
             
