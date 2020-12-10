@@ -12,6 +12,10 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: ^1.13
+      
+      - uses: actions/setup-node@v1
+        with:
+          node-version: '12.x'
 
       - name: Checkout the repository
         uses: actions/checkout@v2
@@ -30,9 +34,11 @@ jobs:
           fyne package -os darwin -name "Spotify Lite"
           mkdir -p dist 
           mv "Spotify Lite.app" dist/
-          cp readme.md dist/
+          cd dist
+          npx create-dmg "Spotify Lite.app"
+          rm -rf "Spotify Lite.app"
           ls dist
-  
+
       - name: Generate build files
         uses: marvinpinto/action-automatic-releases@latest
         with:
