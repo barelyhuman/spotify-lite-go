@@ -25,6 +25,7 @@ var (
 	client         spotify.Client
 	windowInstance fyne.Window
 	appInstance    fyne.App
+	trackNameChan  chan bool
 )
 
 func main() {
@@ -57,6 +58,8 @@ func main() {
 	if err := srv.Shutdown(context.TODO()); err != nil {
 		panic(err)
 	}
+
+	trackNameChan <- true
 
 	wg.Wait()
 }
@@ -138,7 +141,7 @@ This only has to be done once.
 			log.Fatal("Failed :", err)
 		}
 		fmt.Println("Hi: ", user.ID)
-		showPlayerView()
+		trackNameChan = showPlayerView()
 	}
 
 }
@@ -194,7 +197,7 @@ func oAuthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 	fmt.Fprintf(w, "Login Completed!")
 
-	showPlayerView()
+	trackNameChan = showPlayerView()
 
 	if err != nil {
 		log.Print(err)
@@ -211,31 +214,31 @@ func updateTrackNameLabel(label *widget.Label) {
 	return
 }
 
-func showPlayerView() {
+func showPlayerView() chan bool {
 
 	currentPlayingLabel := widget.NewLabel("")
 	updateTrackNameLabel(currentPlayingLabel)
 
+	stop := schedule(func() {
+		updateTrackNameLabel(currentPlayingLabel)
+	}, 2*time.Second)
+
 	playButton := widget.NewButton("Play", func() {
 		client.Play()
-		time.Sleep(2 * time.Second)
-		updateTrackNameLabel(currentPlayingLabel)
+		currentPlayingLabel.SetText("Loading...")
 	})
 	pauseButton := widget.NewButton("Pause", func() {
 		client.Pause()
-		time.Sleep(2 * time.Second)
-		updateTrackNameLabel(currentPlayingLabel)
+		currentPlayingLabel.SetText("Loading...")
 	})
 	nextButton := widget.NewButton("Next", func() {
 		client.Next()
-		time.Sleep(2 * time.Second)
-		updateTrackNameLabel(currentPlayingLabel)
+		currentPlayingLabel.SetText("Loading...")
 	})
 
 	backButton := widget.NewButton("Prev", func() {
 		client.Previous()
-		time.Sleep(2 * time.Second)
-		updateTrackNameLabel(currentPlayingLabel)
+		currentPlayingLabel.SetText("Loading...")
 	})
 
 	windowInstance.SetContent(
@@ -250,4 +253,22 @@ func showPlayerView() {
 		),
 	)
 
+	return stop
+}
+
+func schedule(toExec func(), delay time.Duration) chan bool {
+	stop := make(chan bool)
+
+	go func() {
+		for {
+			toExec()
+			select {
+			case <-time.After(delay):
+			case <-stop:
+				return
+			}
+		}
+	}()
+
+	return stop
 }
