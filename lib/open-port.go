@@ -3,21 +3,38 @@ package lib
 import (
 	"fmt"
 	"net"
+	"sync"
 )
 
-// CheckOpenPort - check for open ports on localhost
-func CheckOpenPort(host string, ports []string) string {
-	var openPort string
-	for _, port := range ports {
-		l, err := net.Listen("tcp", ":"+port)
-		defer l.Close()
+type openPort string
 
-		if err != nil {
-			// Log or report the error here
-			fmt.Printf("Error: %s\n", err)
+var connectedPort openPort
+var getOpenPortOnce sync.Once
+
+// CheckOpenPort - look for available ports
+func CheckOpenPort() string {
+	ports := []string{"1821", "12314", "12312", "1293"}
+
+	getOpenPortOnce.Do(func() {
+		for _, port := range ports {
+			fmt.Println(port)
+			l, err := net.Listen("tcp", ":"+port)
+
+			if err != nil {
+				// Log or report the error here
+				fmt.Printf("Error: %s\n", err)
+			}
+			defer l.Close()
+
+			connectedPort = openPort(port)
 		}
+	})
 
-		openPort = port
-	}
-	return openPort
+	return string(connectedPort)
+}
+
+// GetRedirectURL - Get redirect url for spotify app
+func GetRedirectURL() string {
+	return "http://localhost:" + string(connectedPort) + "/callback"
+
 }
