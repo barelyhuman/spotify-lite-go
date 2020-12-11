@@ -22,7 +22,11 @@ The app will add on other features but unless spotify releases a desktop player 
 - There's a plugin/add-on on VS Code called Music Time that can be used to provide similar functionality but uses the install spotify to work (again, Both being RAM hungry)
 
 #### TLDR;
-This tools is a lite remote control for an already active device playing a playlist.
+This tools is a lite remote control for an already active device playing a playlist on spotify.
+
+
+#### Features 
+- Control Spotify Playback
 
 ### Roadmap 
 At this point, the primary goal is to have a working client that can change the current track in the playlist and play pause when needed.
