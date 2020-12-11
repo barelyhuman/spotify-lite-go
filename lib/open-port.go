@@ -17,7 +17,6 @@ func CheckOpenPort() string {
 
 	getOpenPortOnce.Do(func() {
 		for _, port := range ports {
-			fmt.Println(port)
 			l, err := net.Listen("tcp", ":"+port)
 
 			if err != nil {
