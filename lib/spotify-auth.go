@@ -22,4 +22,7 @@ func GetAuthenticator() spotify.Authenticator {
 func SetAuthenticator() {
 	redirectURL := GetRedirectURL()
 	auth = spotify.NewAuthenticator(redirectURL, spotify.ScopeUserReadCurrentlyPlaying, spotify.ScopeUserReadPlaybackState, spotify.ScopeUserModifyPlaybackState)
+	clientID := app.Preferences().StringWithFallback("Client ID", "")
+	clientSecret := app.Preferences().StringWithFallback("Client Secret", "")
+	auth.SetAuthInfo(clientID, clientSecret)
 }
