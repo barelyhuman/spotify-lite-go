@@ -51,7 +51,8 @@ func main() {
 
 	appInstance = app.NewWithID("com.reaper.spotifylite")
 
-	// lib.OpenConfigurationScreen(appInstance, openPort)
+	lib.SetApp(appInstance)
+
 	trackNameChan := lib.OpenPlayerView(appInstance, &client)
 
 	if err := srv.Shutdown(context.TODO()); err != nil {
@@ -111,8 +112,6 @@ func oAuthRedirectHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/html")
 	fmt.Fprintf(w, "Login Completed!")
-
-	trackNameChan = lib.OpenPlayerView(appInstance, &client)
 
 	if err != nil {
 		log.Print(err)

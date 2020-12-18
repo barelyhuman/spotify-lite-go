@@ -11,16 +11,12 @@ import (
 
 // OpenPlayerView - Open the player view
 func OpenPlayerView(appInstance fyne.App, client *spotify.Client) chan bool {
-
-	redirectURL := GetRedirectURL()
-	auth := spotify.NewAuthenticator(redirectURL, spotify.ScopeUserReadCurrentlyPlaying, spotify.ScopeUserReadPlaybackState, spotify.ScopeUserModifyPlaybackState)
-
 	var stop chan bool
 
-	if GetToken(appInstance, auth, client) {
+	if GetToken(client) {
 		windowInstance := appInstance.NewWindow("Spotify Lite")
 
-		stop = showPlayerView(windowInstance, client)
+		stop = showPlayerView(windowInstance, client, appInstance)
 
 		windowInstance.ShowAndRun()
 	} else {
@@ -30,9 +26,10 @@ func OpenPlayerView(appInstance fyne.App, client *spotify.Client) chan bool {
 	return stop
 }
 
-func showPlayerView(windowInstance fyne.Window, client *spotify.Client) chan bool {
+func showPlayerView(windowInstance fyne.Window, client *spotify.Client, appInstance fyne.App) chan bool {
 
 	currentPlayingLabel := widget.NewLabel("Loading...")
+	currentArtistLabel := widget.NewLabel("Loading...")
 
 	playButton := widget.NewButton("Play", func() {
 		client.Play()
@@ -55,6 +52,7 @@ func showPlayerView(windowInstance fyne.Window, client *spotify.Client) chan boo
 	windowInstance.SetContent(
 		widget.NewVBox(
 			currentPlayingLabel,
+			currentArtistLabel,
 			widget.NewHBox(
 				playButton,
 				pauseButton,
@@ -65,21 +63,24 @@ func showPlayerView(windowInstance fyne.Window, client *spotify.Client) chan boo
 	)
 
 	stop := Schedule(func() {
-		updateTrackNameLabel(currentPlayingLabel, client)
+		updateTrackNameLabel(currentPlayingLabel, client, appInstance, currentArtistLabel)
 	}, 2*time.Second)
 
 	return stop
 }
 
-func updateTrackNameLabel(label *widget.Label, client *spotify.Client) {
+func updateTrackNameLabel(label *widget.Label, client *spotify.Client, appInstance fyne.App, artistLabel *widget.Label) {
+	_ = GetToken(client)
 	playing, err := client.PlayerCurrentlyPlaying()
 	if err != nil {
 		log.Print("Label Update Fail:", err)
+		OpenConfigurationScreen(appInstance)
 	}
 	if !playing.Playing {
 		label.SetText("Not Playing anything...")
 	} else {
 		label.SetText(playing.Item.Name)
+		artistLabel.SetText(playing.Item.Artists[0].Name)
 	}
 	return
 }

@@ -3,18 +3,17 @@ package lib
 import (
 	"time"
 
-	"fyne.io/fyne"
 	"github.com/zmb3/spotify"
 	"golang.org/x/oauth2"
 )
 
 // GetToken - Handle renew and creation of token
-func GetToken(appInstance fyne.App, auth spotify.Authenticator, client *spotify.Client) bool {
-
-	accessToken := appInstance.Preferences().StringWithFallback("Access Token", "")
-	refreshToken := appInstance.Preferences().StringWithFallback("Refresh Token", "")
-	clientID := appInstance.Preferences().StringWithFallback("Client ID", "")
-	clientSecret := appInstance.Preferences().StringWithFallback("Client Secret", "")
+func GetToken(client *spotify.Client) bool {
+	auth := GetAuthenticator()
+	accessToken := app.Preferences().StringWithFallback("Access Token", "")
+	refreshToken := app.Preferences().StringWithFallback("Refresh Token", "")
+	clientID := app.Preferences().StringWithFallback("Client ID", "")
+	clientSecret := app.Preferences().StringWithFallback("Client Secret", "")
 
 	auth.SetAuthInfo(clientID, clientSecret)
 
@@ -23,7 +22,7 @@ func GetToken(appInstance fyne.App, auth spotify.Authenticator, client *spotify.
 
 	if m, _ := time.ParseDuration("5m30s"); time.Until(token.Expiry) < m {
 		newToken, _ := client.Token()
-		appInstance.Preferences().SetString("Access Token", newToken.AccessToken)
+		app.Preferences().SetString("Access Token", newToken.AccessToken)
 		*client = auth.NewClient(newToken)
 	}
 
