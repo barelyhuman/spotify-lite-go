@@ -1,6 +1,7 @@
 package lib
 
 import (
+	"strings"
 	"time"
 
 	"github.com/zmb3/spotify"
@@ -9,6 +10,7 @@ import (
 
 // GetToken - Handle renew and creation of token
 func GetToken(client *spotify.Client) bool {
+
 	auth := GetAuthenticator()
 	accessToken := app.Preferences().StringWithFallback("Access Token", "")
 	refreshToken := app.Preferences().StringWithFallback("Refresh Token", "")
@@ -21,7 +23,12 @@ func GetToken(client *spotify.Client) bool {
 	*client = auth.NewClient(token)
 
 	if m, _ := time.ParseDuration("5m30s"); time.Until(token.Expiry) < m {
-		newToken, _ := client.Token()
+		newToken, err := client.Token()
+		if err != nil {
+			if strings.Contains(err.Error(), "expired") {
+				return false
+			}
+		}
 		app.Preferences().SetString("Access Token", newToken.AccessToken)
 		*client = auth.NewClient(newToken)
 	}
