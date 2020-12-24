@@ -1,119 +1,146 @@
 package main
 
 import (
-	"context"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
-	"sync"
+	"strings"
 
 	"fyne.io/fyne"
 	"fyne.io/fyne/app"
+	"fyne.io/fyne/widget"
 	"github.com/barelyhuman/spotify-lite-go/lib"
+
 	"github.com/zmb3/spotify"
+	"golang.org/x/oauth2"
 )
 
+var redirectURI = "http://localhost:8080/callback"
+
 var (
-	state         string
-	client        spotify.Client
-	appInstance   fyne.App
-	trackNameChan chan bool
+	auth          = spotify.NewAuthenticator(redirectURI, spotify.ScopeUserReadCurrentlyPlaying, spotify.ScopeUserReadPlaybackState, spotify.ScopeUserModifyPlaybackState)
+	ch            = make(chan *spotify.Client)
+	token         = make(chan *oauth2.Token)
+	state         = "abc123"
+	codeVerifier  string
+	codeChallenge string
 )
 
 func main() {
+	appInstance := app.NewWithID("im.reaper.spotify-lite-go")
+	initialWindow := showInitialWindow(appInstance)
+	var configWindow fyne.Window
+	go setupServer()
 
-	/*
-	* TODO:
-	* Save and Fetch Config - To File for now, UserData/spotify-lite/config.json/yml/whatever
-	* OAuth Flow - Spotify
-	* Save ClientID,ClientSecret,Port to config
-	* Save the access token once the calleback is called to the config as well
-	* Render Simple UI if the config already as all the above
-	 */
-
-	var srv *http.Server
-
-	wg := new(sync.WaitGroup)
-
-	wg.Add(3)
-
-	lib.NewState()
-
-	state = lib.GetState()
-
-	openPort := lib.CheckOpenPort()
+	log.Println(codeVerifier, codeChallenge)
 
 	go func() {
-		srv = setupServer(openPort)
-		wg.Done()
+		configHandler(appInstance, &configWindow)
 	}()
 
-	appInstance = app.NewWithID("com.reaper.spotifylite")
+	go func() {
+		select {
+		case tokenValue := <-token:
+			saveToken(appInstance, tokenValue)
+		}
+	}()
 
-	lib.SetApp(appInstance)
+	go func() {
+		select {
+		case client := <-ch:
+			log.Println("Oauth Connected")
+			user, err := client.CurrentUser()
+			if err != nil {
+				if strings.Contains(err.Error(), "token expired") {
+					appInstance.Preferences().RemoveValue("Access Token")
+					appInstance.Preferences().RemoveValue("Refresh Token")
+					configHandler(appInstance, &configWindow)
+					client = <-ch
+				} else {
+					log.Fatal(err)
+				}
 
-	trackNameChan := lib.OpenPlayerView(appInstance, &client)
+			}
+			log.Println("You are logged in as:", user.ID)
+			windowContents, stopLabelUpdate := lib.GetPlayerView(client)
+			if configWindow != nil {
+				configWindow.Close()
+			}
+			initialWindow.SetContent(
+				windowContents,
+			)
+			stopLabelUpdate <- true
+		}
+	}()
 
-	if err := srv.Shutdown(context.TODO()); err != nil {
-		panic(err)
-	}
-
-	trackNameChan <- true
-
-	wg.Wait()
+	appInstance.Run()
 }
 
-func setupServer(connectionPort string) *http.Server {
+func configHandler(appInstance fyne.App, configWindow *fyne.Window) {
+	isClientIDExists := appInstance.Preferences().StringWithFallback("Client ID", "") != ""
+	refreshToken := appInstance.Preferences().StringWithFallback("Refresh Token", "")
+	accessToken := appInstance.Preferences().StringWithFallback("Access Token", "")
 
-	srv := &http.Server{Addr: ":" + connectionPort}
+	if !isClientIDExists || refreshToken == "" || accessToken == "" {
+		log.Println("Opening Configuration Screen Again")
+		*configWindow = lib.OpenConfigurationScreen(appInstance, codeChallenge)
+	} else {
+		log.Println("Using Tokens")
+		token := oauth2.Token{
+			AccessToken:  accessToken,
+			RefreshToken: refreshToken,
+		}
+		client := auth.NewClient(&token)
+		ch <- &client
+	}
+}
 
-	http.HandleFunc("/callback", oAuthRedirectHandler)
+func showInitialWindow(appInstance fyne.App) fyne.Window {
+	window := appInstance.NewWindow("Spotify Lite")
+	window.Resize(fyne.NewSize(300, 40))
+	progressBar := widget.NewProgressBarInfinite()
+	label := widget.NewLabelWithStyle("Starting Engines...", fyne.TextAlignCenter, fyne.TextStyle{})
+	window.SetContent(
+		widget.NewVBox(
+			label,
+			progressBar,
+		),
+	)
+	window.Show()
+	return window
+}
 
-	http.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
-		io.WriteString(w, "server up\n")
+func setupServer() {
+	http.HandleFunc("/callback", completeAuth)
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		log.Println("Got request for:", r.URL.String())
 	})
-
-	fmt.Println("Started Server on port:" + connectionPort)
-	if err := srv.ListenAndServe(); err != nil {
-		log.Fatal(err)
-	}
-
-	return srv
+	http.ListenAndServe(":8080", nil)
 }
 
-func oAuthRedirectHandler(w http.ResponseWriter, r *http.Request) {
-	auth := lib.GetAuthenticator()
-	clientID := appInstance.Preferences().StringWithFallback("Client ID", "")
-	clientSecret := appInstance.Preferences().StringWithFallback("Client Secret", "")
-	auth.SetAuthInfo(clientID, clientSecret)
-
-	token, err := auth.Token(state, r)
-
+func completeAuth(w http.ResponseWriter, r *http.Request) {
+	log.Println("Creating Token from query")
+	tok, err := auth.TokenWithOpts(state, r,
+		oauth2.SetAuthURLParam("code_verifier", codeVerifier))
 	if err != nil {
+		log.Println("Failed while creating token")
 		http.Error(w, "Couldn't get token", http.StatusForbidden)
 		log.Fatal(err)
 	}
-
-	st := r.FormValue("state")
-	fmt.Println(state, st)
-
-	if st != state {
+	if st := r.FormValue("state"); st != state {
+		log.Println("Failed while checking state")
 		http.NotFound(w, r)
 		log.Fatalf("State mismatch: %s != %s\n", st, state)
 	}
+	log.Println("Success, creating client...")
+	client := auth.NewClient(tok)
+	fmt.Fprintf(w, "Login Completed!")
+	ch <- &client
+	token <- tok
+}
 
-	fmt.Println("Got token, creating client")
-
+func saveToken(appInstance fyne.App, token *oauth2.Token) {
+	log.Println("Saving Token Details")
 	appInstance.Preferences().SetString("Access Token", token.AccessToken)
 	appInstance.Preferences().SetString("Refresh Token", token.RefreshToken)
-
-	client = auth.NewClient(token)
-
-	w.Header().Set("Content-Type", "text/html")
-	fmt.Fprintf(w, "Login Completed!")
-
-	if err != nil {
-		log.Print(err)
-	}
 }
