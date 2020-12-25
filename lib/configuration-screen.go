@@ -1,6 +1,7 @@
 package lib
 
 import (
+	"log"
 	"net/url"
 
 	"fyne.io/fyne"
@@ -9,11 +10,12 @@ import (
 	"golang.org/x/oauth2"
 )
 
-var redirectURI = "http://localhost:8080/callback"
+var openPort = GetOpenPort()
+
+var redirectURI = "http://localhost:" + openPort + "/callback"
 
 var (
-	auth          = spotify.NewAuthenticator(redirectURI, spotify.ScopeUserReadCurrentlyPlaying, spotify.ScopeUserReadPlaybackState, spotify.ScopeUserModifyPlaybackState)
-	codeChallenge = "ZhZJzPQXYBMjH8FlGAdYK5AndohLzFfZT-8J7biT7ig"
+	auth = spotify.NewAuthenticator(redirectURI, spotify.ScopeUserReadCurrentlyPlaying, spotify.ScopeUserReadPlaybackState, spotify.ScopeUserModifyPlaybackState)
 )
 
 // OpenConfigurationScreen - Open Config screen for handling client details
@@ -25,8 +27,8 @@ func OpenConfigurationScreen(appInstance fyne.App, codeChallenge string) fyne.Wi
 Spotify Lite, needs you to create your own spotify app and add the creds here.
 1. Register an application at the Developer portal
 2. Add the redirect URI mentioned below in the redirect URI 
-You can then copy the ClientId and ClientSecret and paste them here
-This only has to be done once.
+You can then copy the ClientId and paste it here
+This only has to be done once (really depends on spotify's auth rules).
 `,
 	)
 
@@ -69,6 +71,7 @@ This only has to be done once.
 
 func initiateOAuthFlow(clientID string, codeChallenge string) {
 	state := "abc123"
+	log.Println("clientID", clientID)
 	url := auth.AuthURLWithOpts(state,
 		oauth2.SetAuthURLParam("client_id", clientID),
 		oauth2.SetAuthURLParam("code_challenge_method", "S256"),

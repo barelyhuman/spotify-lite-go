@@ -11,11 +11,15 @@ import (
 	"fyne.io/fyne/widget"
 	"github.com/barelyhuman/spotify-lite-go/lib"
 
+	cv "github.com/nirasan/go-oauth-pkce-code-verifier"
+
 	"github.com/zmb3/spotify"
 	"golang.org/x/oauth2"
 )
 
-var redirectURI = "http://localhost:8080/callback"
+var openPort = lib.GetOpenPort()
+
+var redirectURI = "http://localhost:" + openPort + "/callback"
 
 var (
 	auth          = spotify.NewAuthenticator(redirectURI, spotify.ScopeUserReadCurrentlyPlaying, spotify.ScopeUserReadPlaybackState, spotify.ScopeUserModifyPlaybackState)
@@ -30,9 +34,12 @@ func main() {
 	appInstance := app.NewWithID("im.reaper.spotify-lite-go")
 	initialWindow := showInitialWindow(appInstance)
 	var configWindow fyne.Window
-	go setupServer()
 
-	log.Println(codeVerifier, codeChallenge)
+	cvInstance, _ := cv.CreateCodeVerifier()
+	codeVerifier = cvInstance.String()
+	codeChallenge = cvInstance.CodeChallengeS256()
+
+	go setupServer(appInstance)
 
 	go func() {
 		configHandler(appInstance, &configWindow)
@@ -110,17 +117,27 @@ func showInitialWindow(appInstance fyne.App) fyne.Window {
 	return window
 }
 
-func setupServer() {
-	http.HandleFunc("/callback", completeAuth)
+func setupServer(appInstance fyne.App) {
+	http.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
+		completeAuth(w, r, appInstance)
+	})
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		log.Println("Got request for:", r.URL.String())
 	})
-	http.ListenAndServe(":8080", nil)
+	http.ListenAndServe(":16497", nil)
 }
 
-func completeAuth(w http.ResponseWriter, r *http.Request) {
+func completeAuth(w http.ResponseWriter, r *http.Request, appInstance fyne.App) {
 	log.Println("Creating Token from query")
+	clientId := appInstance.Preferences().StringWithFallback("Client ID", "")
+
+	if r.URL.Query().Get("code") == "" {
+		fmt.Fprintf(w, "Missing Parameters!")
+		return
+	}
+
 	tok, err := auth.TokenWithOpts(state, r,
+		oauth2.SetAuthURLParam("client_id", clientId),
 		oauth2.SetAuthURLParam("code_verifier", codeVerifier))
 	if err != nil {
 		log.Println("Failed while creating token")
