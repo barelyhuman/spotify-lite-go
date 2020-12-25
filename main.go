@@ -129,7 +129,7 @@ func setupServer(appInstance fyne.App) {
 
 func completeAuth(w http.ResponseWriter, r *http.Request, appInstance fyne.App) {
 	log.Println("Creating Token from query")
-	clientId := appInstance.Preferences().StringWithFallback("Client ID", "")
+	clientID := appInstance.Preferences().StringWithFallback("Client ID", "")
 
 	if r.URL.Query().Get("code") == "" {
 		fmt.Fprintf(w, "Missing Parameters!")
@@ -137,7 +137,7 @@ func completeAuth(w http.ResponseWriter, r *http.Request, appInstance fyne.App) 
 	}
 
 	tok, err := auth.TokenWithOpts(state, r,
-		oauth2.SetAuthURLParam("client_id", clientId),
+		oauth2.SetAuthURLParam("client_id", clientID),
 		oauth2.SetAuthURLParam("code_verifier", codeVerifier))
 	if err != nil {
 		log.Println("Failed while creating token")
