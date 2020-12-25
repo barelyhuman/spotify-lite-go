@@ -30,7 +30,7 @@ jobs:
       - name: Install XORG-DEV
         if: matrix.os == 'ubuntu-latest'
         run: |
-          apt install xorg-dev
+          sudo apt install xorg-dev
 
       - name: Get dependencies
         run: |          
