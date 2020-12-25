@@ -22,7 +22,7 @@ var openPort = lib.GetOpenPort()
 var redirectURI = "http://localhost:" + openPort + "/callback"
 
 var (
-	auth            = spotify.NewAuthenticator(redirectURI, spotify.ScopeUserReadCurrentlyPlaying, spotify.ScopeUserReadPlaybackState, spotify.ScopeUserModifyPlaybackState)
+	auth            = spotify.NewAuthenticator(redirectURI, spotify.ScopeUserReadPrivate, spotify.ScopeUserReadCurrentlyPlaying, spotify.ScopeUserReadPlaybackState, spotify.ScopeUserModifyPlaybackState)
 	ch              = make(chan *spotify.Client)
 	token           = make(chan *oauth2.Token)
 	state           = "abc123"
@@ -39,6 +39,8 @@ func main() {
 	cvInstance, _ := cv.CreateCodeVerifier()
 	codeVerifier = cvInstance.String()
 	codeChallenge = cvInstance.CodeChallengeS256()
+
+	lib.SyncScopes(appInstance, spotify.ScopeUserReadPrivate, spotify.ScopeUserReadCurrentlyPlaying, spotify.ScopeUserReadPlaybackState, spotify.ScopeUserModifyPlaybackState)
 
 	go setupServer(appInstance)
 
@@ -70,14 +72,30 @@ func main() {
 
 			}
 			log.Println("You are logged in as:", user.ID)
-			windowContents, st := lib.GetPlayerView(client)
-			stopLabelUpdate = st
+
+			isChanged := lib.ChangedSubscription(appInstance, user.Product)
+			lib.SaveSubscriptionState(appInstance, user.Product)
+
+			if isChanged {
+				appInstance.Preferences().RemoveValue("Access Token")
+				appInstance.Preferences().RemoveValue("Refresh Token")
+				configHandler(appInstance, &configWindow)
+				client = <-ch
+			}
+
+			premium := false
+			if user.Product == "premium" {
+				premium = true
+			}
+			windowContents, st := lib.GetPlayerView(client, premium)
 			if configWindow != nil {
 				configWindow.Close()
 			}
+			stopLabelUpdate = st
 			initialWindow.SetContent(
 				windowContents,
 			)
+
 		}
 	}()
 

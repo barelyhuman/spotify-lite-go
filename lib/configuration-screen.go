@@ -10,12 +10,11 @@ import (
 	"golang.org/x/oauth2"
 )
 
-var openPort = GetOpenPort()
-
-var redirectURI = "http://localhost:" + openPort + "/callback"
-
 var (
-	auth = spotify.NewAuthenticator(redirectURI, spotify.ScopeUserReadCurrentlyPlaying, spotify.ScopeUserReadPlaybackState, spotify.ScopeUserModifyPlaybackState)
+	scopes      = []string{spotify.ScopeUserReadPrivate, spotify.ScopeUserReadCurrentlyPlaying, spotify.ScopeUserReadPlaybackState, spotify.ScopeUserModifyPlaybackState}
+	openPort    = GetOpenPort()
+	auth        = spotify.NewAuthenticator(redirectURI, scopes...)
+	redirectURI = "http://localhost:" + openPort + "/callback"
 )
 
 // OpenConfigurationScreen - Open Config screen for handling client details
@@ -49,6 +48,7 @@ This only has to be done once (really depends on spotify's auth rules).
 
 	connectButton := widget.NewButton("Connect", func() {
 		appInstance.Preferences().SetString("Client ID", clientIDEntry.Text)
+		SaveScopes(appInstance, scopes...)
 		initiateOAuthFlow(clientIDEntry.Text, codeChallenge)
 	})
 
