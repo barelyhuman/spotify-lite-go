@@ -1,0 +1,22 @@
+{
+  "name": "spotify-lite-go",
+  "version": "0.1.0",
+  "description": "Simple Spotify Client built in go lang and [fyne](http://fyne.io)",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/barelyhuman/spotify-lite-go.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/barelyhuman/spotify-lite-go/issues"
+  },
+  "homepage": "https://github.com/barelyhuman/spotify-lite-go#readme"
+}
