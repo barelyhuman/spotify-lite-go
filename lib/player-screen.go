@@ -53,6 +53,7 @@ func updateTrackNameLabel(label *widget.Label, client *spotify.Client, artistLab
 	}
 	if !playing.Playing {
 		label.SetText("Not Playing anything...")
+		artistLabel.SetText("-")
 	} else {
 		label.SetText(playing.Item.Name)
 		artistLabel.SetText(playing.Item.Artists[0].Name)
