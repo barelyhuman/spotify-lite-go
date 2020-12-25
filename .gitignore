@@ -31,3 +31,5 @@ main
 *.app
 *.dmg
 spotify-lite-go
+Spotify Lite.tar.gz
+dist/

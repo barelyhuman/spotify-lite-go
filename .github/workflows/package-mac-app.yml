@@ -1,4 +1,4 @@
-name: Build on Push
+name: Package Mac
 on:
   create:
     tags: '*'
@@ -6,7 +6,11 @@ on:
 jobs:
   pre-release:
     name: Pre Release
-    runs-on: macOS-latest
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [macOS-latest, ubuntu-latest]
     steps:
       - name: Get the version
         id: get_version
@@ -23,8 +27,13 @@ jobs:
       - name: Checkout the repository
         uses: actions/checkout@v2
 
-      - name: Get dependencies
+      - name: Install XORG-DEV
+        if: runner.os == "Linux"
         run: |
+          apt install xorg-dev
+
+      - name: Get dependencies
+        run: |          
           go get -v -t -d ./...
           if [ -f Gopkg.toml ]; then
             curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
@@ -32,7 +41,8 @@ jobs:
           fi
           go get fyne.io/fyne/cmd/fyne
 
-      - name: Package File
+      - name: Package App Mac
+        if: runner.os == 'macOS'
         run: |
           fyne package -os darwin -name "Spotify Lite"
           mkdir -p dist 
@@ -40,6 +50,13 @@ jobs:
           cd dist
           npx create-dmg Spotify\ Lite.app | echo "done"
           rm -rf "Spotify Lite.app"
+
+      - name: Package App Linux
+        if: runner.os == 'linux'
+        run: |
+          fyne package -os linux -name "Spotify Lite"
+          mkdir -p dist 
+          mv "Spotify Lite.tar.gz" dist/
 
       - name: Generate build files
         uses: marvinpinto/action-automatic-releases@latest
