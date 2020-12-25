@@ -22,12 +22,13 @@ var openPort = lib.GetOpenPort()
 var redirectURI = "http://localhost:" + openPort + "/callback"
 
 var (
-	auth          = spotify.NewAuthenticator(redirectURI, spotify.ScopeUserReadCurrentlyPlaying, spotify.ScopeUserReadPlaybackState, spotify.ScopeUserModifyPlaybackState)
-	ch            = make(chan *spotify.Client)
-	token         = make(chan *oauth2.Token)
-	state         = "abc123"
-	codeVerifier  string
-	codeChallenge string
+	auth            = spotify.NewAuthenticator(redirectURI, spotify.ScopeUserReadCurrentlyPlaying, spotify.ScopeUserReadPlaybackState, spotify.ScopeUserModifyPlaybackState)
+	ch              = make(chan *spotify.Client)
+	token           = make(chan *oauth2.Token)
+	state           = "abc123"
+	codeVerifier    string
+	codeChallenge   string
+	stopLabelUpdate chan bool
 )
 
 func main() {
@@ -69,18 +70,20 @@ func main() {
 
 			}
 			log.Println("You are logged in as:", user.ID)
-			windowContents, stopLabelUpdate := lib.GetPlayerView(client)
+			windowContents, st := lib.GetPlayerView(client)
+			stopLabelUpdate = st
 			if configWindow != nil {
 				configWindow.Close()
 			}
 			initialWindow.SetContent(
 				windowContents,
 			)
-			stopLabelUpdate <- true
 		}
 	}()
 
 	appInstance.Run()
+
+	stopLabelUpdate <- true
 }
 
 func configHandler(appInstance fyne.App, configWindow *fyne.Window) {
