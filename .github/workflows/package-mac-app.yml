@@ -10,7 +10,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [macOS-latest, ubuntu-latest]
+        os: [macOS-latest]
     steps:
       - name: Get the version
         id: get_version
@@ -27,10 +27,10 @@ jobs:
       - name: Checkout the repository
         uses: actions/checkout@v2
 
-      - name: Install Linux Dev Deps 
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt install xorg-dev libgl1-mesa-dev
+      # - name: Install Linux Dev Deps 
+      #   if: matrix.os == 'ubuntu-latest'
+      #   run: |
+      #     sudo apt install xorg-dev libgl1-mesa-dev
 
       - name: Get dependencies
         run: |          
@@ -51,12 +51,12 @@ jobs:
           npx create-dmg Spotify\ Lite.app | echo "done"
           rm -rf "Spotify Lite.app"
 
-      - name: Package App Linux
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          fyne package -os linux -name "Spotify Lite"
-          mkdir -p dist 
-          mv "Spotify Lite.tar.gz" dist/
+      # - name: Package App Linux
+      #   if: matrix.os == 'ubuntu-latest'
+      #   run: |
+      #     fyne package -os linux -name "Spotify Lite"
+      #     mkdir -p dist 
+      #     mv "Spotify Lite.tar.gz" dist/
 
       - name: Generate build files
         uses: marvinpinto/action-automatic-releases@latest
