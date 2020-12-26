@@ -40,11 +40,13 @@ func main() {
 	codeVerifier = cvInstance.String()
 	codeChallenge = cvInstance.CodeChallengeS256()
 
+	lib.SyncEnvVariables(appInstance)
 	lib.SyncScopes(appInstance, spotify.ScopeUserReadPrivate, spotify.ScopeUserReadCurrentlyPlaying, spotify.ScopeUserReadPlaybackState, spotify.ScopeUserModifyPlaybackState)
 
 	go setupServer(appInstance)
 
 	go func() {
+		log.Println("Initial Trigger for config Handler")
 		configHandler(appInstance, &configWindow)
 	}()
 
@@ -61,40 +63,45 @@ func main() {
 			log.Println("Oauth Connected")
 			user, err := client.CurrentUser()
 			if err != nil {
-				if strings.Contains(err.Error(), "token expired") {
+				log.Println("Client User Fetch error: ", err.Error())
+				if strings.Contains(err.Error(), "oauth2: cannot fetch token") {
+					log.Println("Opening Configuration Screen on Token Fetch")
+					appInstance.Preferences().RemoveValue("Access Token")
+					appInstance.Preferences().RemoveValue("Refresh Token")
+					configHandler(appInstance, &configWindow)
+				} else {
+					log.Fatal(err)
+				}
+				log.Println("Waiting for new client...")
+				client = <-ch
+			}
+
+			if user != nil {
+				log.Println("You are logged in as:", user.ID)
+
+				isChanged := lib.ChangedSubscription(appInstance, user.Product)
+				lib.SaveSubscriptionState(appInstance, user.Product)
+
+				if isChanged {
 					appInstance.Preferences().RemoveValue("Access Token")
 					appInstance.Preferences().RemoveValue("Refresh Token")
 					configHandler(appInstance, &configWindow)
 					client = <-ch
-				} else {
-					log.Fatal(err)
 				}
 
+				premium := false
+				if user.Product == "premium" {
+					premium = true
+				}
+				windowContents, st := lib.GetPlayerView(client, premium)
+				if configWindow != nil {
+					configWindow.Close()
+				}
+				stopLabelUpdate = st
+				initialWindow.SetContent(
+					windowContents,
+				)
 			}
-			log.Println("You are logged in as:", user.ID)
-
-			isChanged := lib.ChangedSubscription(appInstance, user.Product)
-			lib.SaveSubscriptionState(appInstance, user.Product)
-
-			if isChanged {
-				appInstance.Preferences().RemoveValue("Access Token")
-				appInstance.Preferences().RemoveValue("Refresh Token")
-				configHandler(appInstance, &configWindow)
-				client = <-ch
-			}
-
-			premium := false
-			if user.Product == "premium" {
-				premium = true
-			}
-			windowContents, st := lib.GetPlayerView(client, premium)
-			if configWindow != nil {
-				configWindow.Close()
-			}
-			stopLabelUpdate = st
-			initialWindow.SetContent(
-				windowContents,
-			)
 
 		}
 	}()
@@ -105,15 +112,18 @@ func main() {
 }
 
 func configHandler(appInstance fyne.App, configWindow *fyne.Window) {
-	isClientIDExists := appInstance.Preferences().StringWithFallback("Client ID", "") != ""
+	clientID := appInstance.Preferences().StringWithFallback("Client ID", "")
+	isClientIDExists := clientID != ""
 	refreshToken := appInstance.Preferences().StringWithFallback("Refresh Token", "")
 	accessToken := appInstance.Preferences().StringWithFallback("Access Token", "")
 
+	log.Println("Checking if configuration screen is needed")
+
 	if !isClientIDExists || refreshToken == "" || accessToken == "" {
-		log.Println("Opening Configuration Screen Again")
 		*configWindow = lib.OpenConfigurationScreen(appInstance, codeChallenge)
 	} else {
 		log.Println("Using Tokens")
+		auth.SetAuthInfo(clientID, "")
 		token := oauth2.Token{
 			AccessToken:  accessToken,
 			RefreshToken: refreshToken,
@@ -145,7 +155,8 @@ func setupServer(appInstance fyne.App) {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		log.Println("Got request for:", r.URL.String())
 	})
-	http.ListenAndServe(":16497", nil)
+	log.Println("Starting server on port " + lib.GetOpenPort())
+	http.ListenAndServe(":"+lib.GetOpenPort(), nil)
 }
 
 func completeAuth(w http.ResponseWriter, r *http.Request, appInstance fyne.App) {
