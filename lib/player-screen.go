@@ -10,9 +10,13 @@ import (
 )
 
 // GetPlayerView - get player view as canvas
-func GetPlayerView(client *spotify.Client, premium bool) (*widget.Box, chan bool) {
+func GetPlayerView(client *spotify.Client, premium bool, recheck func()) (*widget.Box, chan bool) {
 	currentPlayingLabel := widget.NewLabel("Loading...")
 	currentArtistLabel := widget.NewLabel("Loading...")
+
+	recheckButton := widget.NewButton("Recheck", func() {
+		recheck()
+	})
 
 	playButton := widget.NewButton("Play", func() {
 		client.Play()
@@ -54,6 +58,7 @@ func GetPlayerView(client *spotify.Client, premium bool) (*widget.Box, chan bool
 		playerControls = widget.NewVBox(
 			needPremiumLabel,
 			needPremiumSubLabel,
+			recheckButton,
 		)
 	}
 

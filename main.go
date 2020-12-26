@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"fyne.io/fyne"
 	"fyne.io/fyne/app"
@@ -16,6 +17,8 @@ import (
 	"github.com/zmb3/spotify"
 	"golang.org/x/oauth2"
 )
+
+const timeLayout = "02 Jan 06 15:04 MST"
 
 var openPort = lib.GetOpenPort()
 
@@ -58,57 +61,51 @@ func main() {
 	}()
 
 	go func() {
-		select {
-		case client := <-ch:
-			log.Println("Oauth Connected")
-			user, err := client.CurrentUser()
-			if err != nil {
-				log.Println("Client User Fetch error: ", err.Error())
-				if strings.Contains(err.Error(), "oauth2: cannot fetch token") {
-					log.Println("Opening Configuration Screen on Token Fetch")
-					appInstance.Preferences().RemoveValue("Access Token")
-					appInstance.Preferences().RemoveValue("Refresh Token")
-					configHandler(appInstance, &configWindow)
-				} else {
-					log.Fatal(err)
-				}
-				log.Println("Waiting for new client...")
-				client = <-ch
-			}
-
-			if user != nil {
-				log.Println("You are logged in as:", user.ID)
-
-				isChanged := lib.ChangedSubscription(appInstance, user.Product)
-				lib.SaveSubscriptionState(appInstance, user.Product)
-
-				if isChanged {
-					appInstance.Preferences().RemoveValue("Access Token")
-					appInstance.Preferences().RemoveValue("Refresh Token")
-					configHandler(appInstance, &configWindow)
-					client = <-ch
-				}
-
-				premium := false
-				if user.Product == "premium" {
-					premium = true
-				}
-				windowContents, st := lib.GetPlayerView(client, premium)
-				if configWindow != nil {
-					configWindow.Close()
-				}
-				stopLabelUpdate = st
-				initialWindow.SetContent(
-					windowContents,
-				)
-			}
-
-		}
+		handlePlayerView(appInstance, &configWindow, initialWindow)
 	}()
 
 	appInstance.Run()
 
 	stopLabelUpdate <- true
+}
+
+func handlePlayerView(appInstance fyne.App, configWindow *fyne.Window, initialWindow fyne.Window) {
+	select {
+	case client := <-ch:
+		log.Println("Oauth Connected")
+		user, err := client.CurrentUser()
+		if err != nil {
+			log.Println("Client User Fetch error: ", err.Error())
+			client.Token()
+			if strings.Contains(err.Error(), "oauth2: cannot fetch token") {
+				log.Println("Opening Configuration Screen on Token Fetch")
+				appInstance.Preferences().RemoveValue("Access Token")
+				appInstance.Preferences().RemoveValue("Refresh Token")
+				configHandler(appInstance, configWindow)
+			} else {
+				log.Fatal(err)
+			}
+			log.Println("Waiting for new client...")
+			client = <-ch
+		}
+
+		if user != nil {
+			log.Println("You are logged in as:", user.ID)
+
+			st := playerWindowManager(client, initialWindow)
+			stopLabelUpdate = st
+		}
+
+	}
+}
+
+func playerWindowManager(client *spotify.Client, initialWindow fyne.Window) chan bool {
+	user, _ := client.CurrentUser()
+	windowContentsRecursive, stop := lib.GetPlayerView(client, user.Product == "premium", func() {
+		playerWindowManager(client, initialWindow)
+	})
+	initialWindow.SetContent(windowContentsRecursive)
+	return stop
 }
 
 func configHandler(appInstance fyne.App, configWindow *fyne.Window) {
@@ -117,18 +114,17 @@ func configHandler(appInstance fyne.App, configWindow *fyne.Window) {
 	refreshToken := appInstance.Preferences().StringWithFallback("Refresh Token", "")
 	accessToken := appInstance.Preferences().StringWithFallback("Access Token", "")
 
-	log.Println("Checking if configuration screen is needed")
+	log.Println("Checking Configuration Deps")
+	log.Println("ClientID Exists", isClientIDExists)
+	log.Println("Refresh Token Exists", refreshToken == "")
+	log.Println("Access Token Exists", accessToken == "")
 
 	if !isClientIDExists || refreshToken == "" || accessToken == "" {
 		*configWindow = lib.OpenConfigurationScreen(appInstance, codeChallenge)
 	} else {
 		log.Println("Using Tokens")
-		auth.SetAuthInfo(clientID, "")
-		token := oauth2.Token{
-			AccessToken:  accessToken,
-			RefreshToken: refreshToken,
-		}
-		client := auth.NewClient(&token)
+		token := loadToken(appInstance)
+		client := auth.NewClient(token)
 		ch <- &client
 	}
 }
@@ -192,4 +188,16 @@ func saveToken(appInstance fyne.App, token *oauth2.Token) {
 	log.Println("Saving Token Details")
 	appInstance.Preferences().SetString("Access Token", token.AccessToken)
 	appInstance.Preferences().SetString("Refresh Token", token.RefreshToken)
+	appInstance.Preferences().SetString("Token Type", token.TokenType)
+	appInstance.Preferences().SetString("Token Expiry", token.Expiry.Local().Format(timeLayout))
+}
+
+func loadToken(appInstance fyne.App) *oauth2.Token {
+	parsedTime, _ := time.Parse(timeLayout, appInstance.Preferences().String("Token Expiry"))
+	return &oauth2.Token{
+		AccessToken:  appInstance.Preferences().String("Access Token"),
+		RefreshToken: appInstance.Preferences().String("Refresh Token"),
+		TokenType:    appInstance.Preferences().String("Token Type"),
+		Expiry:       parsedTime,
+	}
 }
