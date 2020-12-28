@@ -116,8 +116,9 @@ func configHandler(appInstance fyne.App, configWindow *fyne.Window) {
 
 	log.Println("Checking Configuration Deps")
 	log.Println("ClientID Exists", isClientIDExists)
-	log.Println("Refresh Token Exists", refreshToken == "")
-	log.Println("Access Token Exists", accessToken == "")
+	log.Println("Refresh Token Exists", refreshToken != "")
+	log.Println("Access Token Exists", accessToken != "")
+	auth.SetAuthInfo(clientID, "")
 
 	if !isClientIDExists || refreshToken == "" || accessToken == "" {
 		*configWindow = lib.OpenConfigurationScreen(appInstance, codeChallenge)
