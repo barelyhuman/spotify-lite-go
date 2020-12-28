@@ -10,7 +10,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [macOS-latest, ubuntu-latest]
+        os: [macOS-latest]
     steps:
       - name: Get the version
         id: get_version
@@ -29,6 +29,14 @@ jobs:
         with:
           fetch_depth: 0
 
+      - name: Generate Change Log Linux
+        if: matrix.os == 'ubuntu-latest'
+        run: sh changelog_linux.sh
+
+      - name: Generate Change Log Mac
+        if: matrix.os == 'macOS-latest'
+        run: sh changelog.sh
+
       - name: Install Linux Dev Deps
         if: matrix.os == 'ubuntu-latest'
         run: |
@@ -42,14 +50,6 @@ jobs:
             dep ensure
           fi
           go get fyne.io/fyne/cmd/fyne
-
-      - name: Generate Change Log Linux
-        if: matrix.os == 'ubuntu-latest'
-        run: sh changelog_linux.sh
-
-      - name: Generate Change Log Mac
-        if: matrix.os == 'macOS-latest'
-        run: sh changelog.sh
 
       - name: Package App Mac
         if: matrix.os == 'macOS-latest'
