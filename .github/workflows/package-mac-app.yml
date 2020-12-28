@@ -26,6 +26,8 @@ jobs:
 
       - name: Checkout the repository
         uses: actions/checkout@v2
+        with:
+          fetch_depth: 0
 
       - name: Install Linux Dev Deps
         if: matrix.os == 'ubuntu-latest'
