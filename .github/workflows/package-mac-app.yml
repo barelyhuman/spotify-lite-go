@@ -1,6 +1,6 @@
 name: Package Mac
 on:
-  create:
+  push:
     tags: '*'
 
 jobs:
@@ -27,7 +27,15 @@ jobs:
       - name: Checkout the repository
         uses: actions/checkout@v2
         with:
-          fetch_depth: 0
+          fetch-depth: 0
+
+      - name: Generate Change Log Linux
+        if: matrix.os == 'ubuntu-latest'
+        run: sh changelog_linux.sh
+
+      - name: Generate Change Log Mac
+        if: matrix.os == 'macOS-latest'
+        run: sh changelog.sh
 
       - name: Generate Change Log Linux
         if: matrix.os == 'ubuntu-latest'
