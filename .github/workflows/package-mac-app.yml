@@ -41,6 +41,32 @@ jobs:
           fi
           go get fyne.io/fyne/cmd/fyne
 
+      - name: Generate Change Log Linux
+        if: matrix.os == 'ubuntu-latest'
+        id: generate_log
+        run: |
+          curl -s https://api.github.com/repos/barelyhuman/commitlog/releases/latest \
+          | grep browser_download_url \
+          | grep linux-amd64 \
+          | cut -d '"' -f 4 \
+          | wget -qi -
+          tar -xvzf commitlog-linux-amd64.tar.gz
+          chmod +x commitlog 
+          ./commitlog . > CHANGELOG.txt
+
+      - name: Generate Change Log Mac
+        if: matrix.os == 'macOS-latest'
+        id: generate_log
+        run: |
+          curl -s https://api.github.com/repos/barelyhuman/commitlog/releases/latest \
+          | grep browser_download_url \
+          | grep darwin-amd64 \
+          | cut -d '"' -f 4 \
+          | wget -qi -
+          tar -xvzf commitlog-darwin-amd64.tar.gz
+          chmod +x commitlog 
+          ./commitlog . > CHANGELOG.txt
+
       - name: Package App Mac
         if: matrix.os == 'macOS-latest'
         run: |
@@ -61,6 +87,7 @@ jobs:
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
+          body_path: CHANGELOG.txt
           files: 'dist/**'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
