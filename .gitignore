@@ -33,3 +33,7 @@ main
 spotify-lite-go
 Spotify Lite.tar.gz
 dist/
+CHANGELOG.txt
+commitlog
+commitlog-darwin-amd64.tar.gz
+commitlog-linux-amd64.tar.gz
