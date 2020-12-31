@@ -50,18 +50,19 @@ func main() {
 
 	go func() {
 		log.Println("Initial Trigger for config Handler")
-		configHandler(appInstance, &configWindow)
+		configHandler(appInstance, configWindow)
 	}()
 
 	go func() {
 		select {
 		case tokenValue := <-token:
+			log.Println("Saving New Token")
 			saveToken(appInstance, tokenValue)
 		}
 	}()
 
 	go func() {
-		handlePlayerView(appInstance, &configWindow, initialWindow)
+		handlePlayerView(appInstance, configWindow, initialWindow)
 	}()
 
 	appInstance.Run()
@@ -69,7 +70,7 @@ func main() {
 	stopLabelUpdate <- true
 }
 
-func handlePlayerView(appInstance fyne.App, configWindow *fyne.Window, initialWindow fyne.Window) {
+func handlePlayerView(appInstance fyne.App, configWindow fyne.Window, initialWindow fyne.Window) {
 	select {
 	case client := <-ch:
 		log.Println("Oauth Connected")
@@ -86,16 +87,15 @@ func handlePlayerView(appInstance fyne.App, configWindow *fyne.Window, initialWi
 				log.Fatal(err)
 			}
 			log.Println("Waiting for new client...")
-			client = <-ch
-		}
-
-		if user != nil {
+			go handlePlayerView(appInstance, configWindow, initialWindow)
+		} else {
 			log.Println("You are logged in as:", user.ID)
-
+			if configWindow != nil {
+				configWindow.Close()
+			}
 			st := playerWindowManager(client, initialWindow)
 			stopLabelUpdate = st
 		}
-
 	}
 }
 
@@ -108,7 +108,7 @@ func playerWindowManager(client *spotify.Client, initialWindow fyne.Window) chan
 	return stop
 }
 
-func configHandler(appInstance fyne.App, configWindow *fyne.Window) {
+func configHandler(appInstance fyne.App, configWindow fyne.Window) {
 	clientID := appInstance.Preferences().StringWithFallback("Client ID", "")
 	isClientIDExists := clientID != ""
 	refreshToken := appInstance.Preferences().StringWithFallback("Refresh Token", "")
@@ -121,11 +121,15 @@ func configHandler(appInstance fyne.App, configWindow *fyne.Window) {
 	auth.SetAuthInfo(clientID, "")
 
 	if !isClientIDExists || refreshToken == "" || accessToken == "" {
-		*configWindow = lib.OpenConfigurationScreen(appInstance, codeChallenge)
+		configWindow = lib.OpenConfigurationScreen(appInstance, codeChallenge)
 	} else {
 		log.Println("Using Tokens")
 		token := loadToken(appInstance)
 		client := auth.NewClient(token)
+		newToken, _ := client.Token()
+		if newToken != nil {
+			saveToken(appInstance, newToken)
+		}
 		ch <- &client
 	}
 }
