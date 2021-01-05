@@ -34,6 +34,48 @@ var (
 	stopLabelUpdate chan bool
 )
 
+/* 
+
+TODO: Refactor Idea pushed from gitpod, needs reconsideration in terms of methods
+
+type AppWindows struct {
+	configWindow fyne.Window
+	mainWindow fyne.Window
+}
+
+type App struct {
+	appInstance fyne.App
+	windows AppWindows
+	token oauth2.Token
+	authenticated bool
+	client *spotify.Client	
+}
+
+func (app App) SyncEnvVariables(){
+
+}
+
+func (app App) DrawInitialWindow(){
+
+}
+
+func (app App) ShowInitialWindow(){
+
+}
+
+func (app App) RefreshToken(){
+
+}
+
+func (app App) DrawConfigScreen(){
+
+}
+
+func (app App) ShowConfigScreen(){
+
+} */
+
+
 func main() {
 	appInstance := app.NewWithID("im.reaper.spotify-lite-go")
 	initialWindow := showInitialWindow(appInstance)
@@ -69,6 +111,8 @@ func main() {
 
 	stopLabelUpdate <- true
 }
+
+
 
 func handlePlayerView(appInstance fyne.App, configWindow fyne.Window, initialWindow fyne.Window) {
 	select {
