@@ -14,6 +14,11 @@ import (
 	"golang.org/x/oauth2"
 )
 
+// AppButtons - button that the player or app uses that are dynamic and need changing
+type AppButtons struct {
+	likeButton *widget.Button
+}
+
 // AppLabels - labels that the player or app uses that are dynamic and need changing
 type AppLabels struct {
 	trackLabel  *widget.Label
@@ -35,6 +40,7 @@ type App struct {
 	client        *spotify.Client
 	labels        AppLabels
 	user          spotify.PrivateUser
+	buttons       AppButtons
 }
 
 const (
@@ -132,7 +138,10 @@ func (app *App) SetClient(client *spotify.Client) {
 		log.Println("Client User Fetch error: ", err.Error())
 		client.Token()
 		if strings.Contains(err.Error(), "oauth2: cannot fetch token") {
+			app.authenticated = false
 			log.Println("Opening Configuration Screen on Token Fetch")
+			app.DrawConfigScreen()
+			app.ShowConfigScreen()
 			app.appInstance.Preferences().RemoveValue("Access Token")
 			app.appInstance.Preferences().RemoveValue("Refresh Token")
 		} else {
@@ -145,7 +154,9 @@ func (app *App) SetClient(client *spotify.Client) {
 			app.windows.configWindow.Close()
 		}
 	}
-	app.user = *user
+	if user != nil {
+		app.user = *user
+	}
 }
 
 // SaveToken  - Save the Oauth Token
@@ -176,6 +187,11 @@ func (app *App) LoadToken() {
 // DrawPlayerView - Draw the player view
 func (app *App) DrawPlayerView() chan bool {
 	var stop chan bool
+
+	if !app.authenticated {
+		return stop
+	}
+
 	currentPlayingLabel := widget.NewLabel("Loading...")
 	currentArtistLabel := widget.NewLabel("Loading...")
 
@@ -207,35 +223,30 @@ func (app *App) DrawPlayerView() chan bool {
 	playing, err := app.client.PlayerCurrentlyPlaying()
 	if err != nil {
 		log.Println("Error getting player", err)
+		return stop
 	}
 
 	likeButtonText := ""
 
-	if app.checkIfUserHasTracks(playing.Item.ID) {
+	if playing.Playing && app.checkIfUserHasTracks(playing.Item.ID) {
 		likeButtonText = "Remove From Library"
 	} else {
 		likeButtonText = "Add to Library"
 	}
 
-	var likeButton *widget.Button
-
-	likeButton = widget.NewButton(likeButtonText, func() {
+	app.buttons.likeButton = widget.NewButton(likeButtonText, func() {
 		hasTrack := app.checkIfUserHasTracks(playing.Item.ID)
 		if !hasTrack {
 			err = app.client.AddTracksToLibrary(playing.Item.ID)
 			if err != nil {
 				log.Println("Error Adding track", err)
 			}
-			likeButtonText = "Remove From Library"
 		} else {
 			err = app.client.RemoveTracksFromLibrary(playing.Item.ID)
 			if err != nil {
 				log.Println("Error Removing track", err)
 			}
-			likeButtonText = "Add to Library"
 		}
-
-		likeButton.SetText(likeButtonText)
 	})
 
 	needPremiumLabel := widget.NewLabelWithStyle("I'm sorry but you can't change playback \n state without spotify premium", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
@@ -250,7 +261,7 @@ func (app *App) DrawPlayerView() chan bool {
 		pauseButton,
 		nextButton,
 		backButton,
-		likeButton,
+		app.buttons.likeButton,
 	)
 
 	if app.user.Product != "premium" {
@@ -271,6 +282,9 @@ func (app *App) DrawPlayerView() chan bool {
 
 // ShowPlayerView - Show the player view
 func (app *App) ShowPlayerView() {
+	if !app.authenticated {
+		return
+	}
 	app.windows.mainWindow.Show()
 }
 
@@ -366,6 +380,18 @@ func (app *App) UpdatePlayerLabels() {
 	} else {
 		app.labels.trackLabel.SetText(playing.Item.Name)
 		app.labels.artistLabel.SetText(playing.Item.Artists[0].Name)
+	}
+
+	likeButtonText := ""
+
+	if playing.Playing && app.checkIfUserHasTracks(playing.Item.ID) {
+		likeButtonText = "Remove From Library"
+	} else {
+		likeButtonText = "Add to Library"
+	}
+
+	if app.buttons.likeButton != nil {
+		app.buttons.likeButton.SetText(likeButtonText)
 	}
 	return
 }
