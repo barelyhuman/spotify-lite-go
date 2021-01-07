@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -41,8 +42,23 @@ const (
 	envVariableSpotifyID = "SPOTIFY_ID"
 )
 
+// Install - initial setup for the App
 func (app *App) Install() {
 	app.appInstance = fyneApp.NewWithID("im.reaper.spotify-lite-go")
+
+	app.DrawMainWindow()
+	app.ShowMainWindow()
+	app.SyncEnvVariables()
+	app.RefreshToken()
+	app.SyncScopes(scopes...)
+
+	if app.authenticated {
+		stopLabelUpdate = app.DrawPlayerView()
+		app.ShowPlayerView()
+	} else {
+		app.DrawConfigScreen()
+		app.ShowConfigScreen()
+	}
 }
 
 // SyncEnvVariables - sync environment variables for client id verfication when needed
@@ -159,6 +175,7 @@ func (app *App) LoadToken() {
 
 // DrawPlayerView - Draw the player view
 func (app *App) DrawPlayerView() chan bool {
+	var stop chan bool
 	currentPlayingLabel := widget.NewLabel("Loading...")
 	currentArtistLabel := widget.NewLabel("Loading...")
 
@@ -187,10 +204,44 @@ func (app *App) DrawPlayerView() chan bool {
 		currentPlayingLabel.SetText("Loading...")
 	})
 
+	playing, err := app.client.PlayerCurrentlyPlaying()
+	if err != nil {
+		log.Println("Error getting player", err)
+	}
+
+	likeButtonText := ""
+
+	if app.checkIfUserHasTracks(playing.Item.ID) {
+		likeButtonText = "Remove From Library"
+	} else {
+		likeButtonText = "Add to Library"
+	}
+
+	var likeButton *widget.Button
+
+	likeButton = widget.NewButton(likeButtonText, func() {
+		hasTrack := app.checkIfUserHasTracks(playing.Item.ID)
+		if !hasTrack {
+			err = app.client.AddTracksToLibrary(playing.Item.ID)
+			if err != nil {
+				log.Println("Error Adding track", err)
+			}
+			likeButtonText = "Remove From Library"
+		} else {
+			err = app.client.RemoveTracksFromLibrary(playing.Item.ID)
+			if err != nil {
+				log.Println("Error Removing track", err)
+			}
+			likeButtonText = "Add to Library"
+		}
+
+		likeButton.SetText(likeButtonText)
+	})
+
 	needPremiumLabel := widget.NewLabelWithStyle("I'm sorry but you can't change playback \n state without spotify premium", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
 	needPremiumSubLabel := widget.NewLabelWithStyle("Close and reopen the app if you upgraded to spotify premium", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
 
-	stop := Schedule(func() {
+	stop = Schedule(func() {
 		app.UpdatePlayerLabels()
 	}, 2*time.Second)
 
@@ -199,6 +250,7 @@ func (app *App) DrawPlayerView() chan bool {
 		pauseButton,
 		nextButton,
 		backButton,
+		likeButton,
 	)
 
 	if app.user.Product != "premium" {
@@ -224,12 +276,79 @@ func (app *App) ShowPlayerView() {
 
 // DrawConfigScreen - Draw the configuration screen to allow user to set prefs and spotify client settings
 func (app *App) DrawConfigScreen() {
+	app.windows.configWindow = app.appInstance.NewWindow("Configuration")
+	clientID := app.appInstance.Preferences().StringWithFallback("Client ID", "")
 
+	var openPortLabel = widget.NewLabel(`
+Spotify Lite, needs you to create your own spotify app and add the creds here.
+1. Register an application at the Developer portal
+2. Add the redirect URI mentioned below in the redirect URI 
+You can then copy the ClientId and paste it here
+This only has to be done once (really depends on spotify's auth rules).
+`,
+	)
+
+	dashboardURL, _ := url.Parse("https://developer.spotify.com/my-applications/")
+	rURL, _ := url.Parse(redirectURI)
+
+	dashboardHelperLabel := widget.NewLabel("Developer Dashboard")
+	developerDashboardLinkElem := widget.NewHyperlink("https://developer.spotify.com/my-applications/", dashboardURL)
+	redirectionHelperLabel := widget.NewLabel("Redirect URI")
+	redirectionLinkElem := widget.NewHyperlink(redirectURI, rURL)
+
+	clientIDEntry := widget.NewEntry()
+	clientIDEntry.SetPlaceHolder("Client ID")
+	clientIDEntry.SetText(clientID)
+	clientIDEntry.OnChanged = func(value string) {
+
+	}
+
+	connectButton := widget.NewButton("Connect", func() {
+		app.appInstance.Preferences().SetString("Client ID", clientIDEntry.Text)
+		app.SaveScopes(scopes...)
+		initiateOAuthFlow(clientIDEntry.Text, codeChallenge)
+	})
+
+	app.windows.configWindow.SetContent(
+		widget.NewVBox(
+			openPortLabel,
+			dashboardHelperLabel,
+			developerDashboardLinkElem,
+			redirectionHelperLabel,
+			redirectionLinkElem,
+			clientIDEntry,
+			connectButton,
+		),
+	)
+
+	app.windows.configWindow.Show()
 }
 
 // ShowConfigScreen - Show the config screen
 func (app *App) ShowConfigScreen() {
 
+}
+
+// SyncScopes - sync current scope requests with existing prefs
+func (app *App) SyncScopes(askingScopes ...string) {
+	savedScopes := app.appInstance.Preferences().StringWithFallback("Scopes", "")
+	askingScopesString := strings.Join(askingScopes[:], ",")
+	log.Println("savedScopes", savedScopes)
+	log.Println("askingScopesString", askingScopesString)
+
+	if len(askingScopesString) != len(savedScopes) {
+		app.appInstance.Preferences().RemoveValue("Scopes")
+		app.appInstance.Preferences().RemoveValue("Access Token")
+		app.appInstance.Preferences().RemoveValue("Refresh Token")
+		app.authenticated = false
+		app.SaveScopes(askingScopes...)
+	}
+}
+
+// SaveScopes - Save new scopes
+func (app *App) SaveScopes(toSave ...string) {
+	toSaveString := strings.Join(toSave[:], ",")
+	app.appInstance.Preferences().SetString("Scopes", toSaveString)
 }
 
 // UpdatePlayerLabels - Update the player labels
@@ -249,4 +368,31 @@ func (app *App) UpdatePlayerLabels() {
 		app.labels.artistLabel.SetText(playing.Item.Artists[0].Name)
 	}
 	return
+}
+
+func initiateOAuthFlow(clientID string, codeChallenge string) {
+	state := "abc123"
+
+	log.Println("clientID", clientID)
+
+	url := auth.AuthURLWithOpts(state,
+		oauth2.SetAuthURLParam("client_id", clientID),
+		oauth2.SetAuthURLParam("code_challenge_method", "S256"),
+		oauth2.SetAuthURLParam("code_challenge", codeChallenge),
+	)
+
+	OpenBrowser(url)
+}
+
+func (app *App) checkIfUserHasTracks(trackID spotify.ID) bool {
+	hasTrack := false
+
+	userHasTrack, err := app.client.UserHasTracks(trackID)
+	if err != nil {
+		log.Println("Error checking user tracks", err)
+	}
+
+	hasTrack = (len(userHasTrack) > 0 && userHasTrack[0]) || false
+
+	return hasTrack
 }

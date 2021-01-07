@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"fyne.io/fyne"
-	"github.com/barelyhuman/spotify-lite-go/lib"
 
 	cv "github.com/nirasan/go-oauth-pkce-code-verifier"
 
@@ -15,18 +14,19 @@ import (
 	"golang.org/x/oauth2"
 )
 
-var openPort = lib.GetOpenPort()
+var openPort = GetOpenPort()
 
 var redirectURI = "http://localhost:" + openPort + "/callback"
 
 var (
-	auth            = spotify.NewAuthenticator(redirectURI, spotify.ScopeUserReadPrivate, spotify.ScopeUserReadCurrentlyPlaying, spotify.ScopeUserReadPlaybackState, spotify.ScopeUserModifyPlaybackState)
 	ch              = make(chan *spotify.Client)
 	token           = make(chan *oauth2.Token)
 	state           = "abc123"
 	codeVerifier    string
 	codeChallenge   string
 	stopLabelUpdate chan bool
+	scopes          = []string{spotify.ScopeUserReadPrivate, spotify.ScopeUserReadCurrentlyPlaying, spotify.ScopeUserReadPlaybackState, spotify.ScopeUserModifyPlaybackState, spotify.ScopeUserLibraryModify, spotify.ScopeUserLibraryRead}
+	auth            = spotify.NewAuthenticator(redirectURI, scopes...)
 )
 
 func main() {
@@ -40,23 +40,10 @@ func main() {
 
 	app.Install()
 
-	app.DrawMainWindow()
-	app.ShowMainWindow()
-	app.SyncEnvVariables()
-	app.RefreshToken()
-
-	if app.authenticated {
-		stopLabelUpdate = app.DrawPlayerView()
-		app.ShowPlayerView()
-	}
-
-	lib.SyncScopes(app.appInstance, spotify.ScopeUserReadPrivate, spotify.ScopeUserReadCurrentlyPlaying, spotify.ScopeUserReadPlaybackState, spotify.ScopeUserModifyPlaybackState)
-
 	go setupServer(app.appInstance)
 
 	go func() {
 		log.Println("Initial Trigger for config Handler")
-		// configHandler(appInstance, configWindow)
 	}()
 
 	go func() {
@@ -88,8 +75,8 @@ func setupServer(appInstance fyne.App) {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		log.Println("Got request for:", r.URL.String())
 	})
-	log.Println("Starting server on port " + lib.GetOpenPort())
-	http.ListenAndServe(":"+lib.GetOpenPort(), nil)
+	log.Println("Starting server on port " + GetOpenPort())
+	http.ListenAndServe(":"+GetOpenPort(), nil)
 }
 
 func completeAuth(w http.ResponseWriter, r *http.Request, appInstance fyne.App) {

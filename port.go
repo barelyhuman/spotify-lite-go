@@ -1,4 +1,4 @@
-package lib
+package main
 
 // GetOpenPort - get current open port on system
 func GetOpenPort() string {
