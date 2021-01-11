@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"time"
 
 	"fyne.io/fyne"
 
@@ -106,22 +105,4 @@ func completeAuth(w http.ResponseWriter, r *http.Request, appInstance fyne.App) 
 	fmt.Fprintf(w, "Login Completed!")
 	ch <- &client
 	token <- tok
-}
-
-func saveToken(appInstance fyne.App, token *oauth2.Token) {
-	log.Println("Saving Token Details")
-	appInstance.Preferences().SetString("Access Token", token.AccessToken)
-	appInstance.Preferences().SetString("Refresh Token", token.RefreshToken)
-	appInstance.Preferences().SetString("Token Type", token.TokenType)
-	appInstance.Preferences().SetString("Token Expiry", token.Expiry.Local().Format(timeLayout))
-}
-
-func loadToken(appInstance fyne.App) *oauth2.Token {
-	parsedTime, _ := time.Parse(timeLayout, appInstance.Preferences().String("Token Expiry"))
-	return &oauth2.Token{
-		AccessToken:  appInstance.Preferences().String("Access Token"),
-		RefreshToken: appInstance.Preferences().String("Refresh Token"),
-		TokenType:    appInstance.Preferences().String("Token Type"),
-		Expiry:       parsedTime,
-	}
 }

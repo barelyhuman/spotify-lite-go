@@ -44,7 +44,6 @@ type App struct {
 }
 
 const (
-	timeLayout           = "02 Jan 06 15:04 MST"
 	envVariableSpotifyID = "SPOTIFY_ID"
 )
 
@@ -118,11 +117,11 @@ func (app *App) RefreshToken() {
 		// app.windows.configWindow = lib.OpenConfigurationScreen(app.appInstance, codeChallenge)
 	} else {
 		log.Println("Using Tokens")
-		token := loadToken(app.appInstance)
-		client := auth.NewClient(token)
+		app.LoadToken()
+		client := auth.NewClient(app.token)
 		newToken, _ := client.Token()
 		if newToken != nil {
-			saveToken(app.appInstance, newToken)
+			app.SaveToken(newToken)
 		}
 		app.SetClient(&client)
 		app.authenticated = true
@@ -169,18 +168,18 @@ func (app *App) SaveToken(token *oauth2.Token) {
 	app.appInstance.Preferences().SetString("Access Token", token.AccessToken)
 	app.appInstance.Preferences().SetString("Refresh Token", token.RefreshToken)
 	app.appInstance.Preferences().SetString("Token Type", token.TokenType)
-	app.appInstance.Preferences().SetString("Token Expiry", token.Expiry.Local().Format(timeLayout))
+	app.appInstance.Preferences().SetInt("Token Expiry", int(token.Expiry.Unix()))
 }
 
 // LoadToken - Load Oauth Token into App
 func (app *App) LoadToken() {
 	log.Println("Loading token into App")
-	parsedTime, _ := time.Parse(timeLayout, app.appInstance.Preferences().String("Token Expiry"))
+	parsedTime := app.appInstance.Preferences().IntWithFallback("Token Expiry", 0)
 	app.token = &oauth2.Token{
 		AccessToken:  app.appInstance.Preferences().String("Access Token"),
 		RefreshToken: app.appInstance.Preferences().String("Refresh Token"),
 		TokenType:    app.appInstance.Preferences().String("Token Type"),
-		Expiry:       parsedTime,
+		Expiry:       time.Unix(int64(parsedTime), 0),
 	}
 }
 
