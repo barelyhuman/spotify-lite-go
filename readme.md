@@ -1,6 +1,8 @@
 ### Spotify Lite (Go Lang)
 Simple Spotify Client built in go lang and [fyne](http://fyne.io)
 
+[![commitlog](https://img.shields.io/badge/changelogs-commitlog-blue)](https://github.com/barelyhuman/commitlog)
+
 
 ## Disclaimer
 This repo / app has nothing to with the Official Spotify clients. 
